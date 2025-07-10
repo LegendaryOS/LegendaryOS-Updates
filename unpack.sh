@@ -19,4 +19,4 @@ cd LegendaryOS-Updates
 mv /LegendaryOS/Scripts/legendary-update.sh /usr/bin/
 chmod a+x /usr/bin/legendary-update.sh
 
-mv /LegendaryOS/Scripts/
+mv /LegendaryOS/Scripts/Kernel-Updater/etc/systemd/system/ /etc/systemd/system
