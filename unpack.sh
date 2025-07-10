@@ -16,4 +16,7 @@ git clone https://github.com/LegendaryOS/LegendaryOS-Updates.git
 cd LegendaryOS-Updates
 
 #aktuakizujemy katalogu
+mv /LegendaryOS/Scripts/legendary-update.sh /usr/bin/
+chmod a+x /usr/bin/legendary-update.sh
 
+mv /LegendaryOS/Scripts/
