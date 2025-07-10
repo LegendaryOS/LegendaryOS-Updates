@@ -10,4 +10,10 @@ legendary-update
 rm -rf /usr/share/LegendaryOS
 
 #klonowanie repo
-git clone
+git clone https://github.com/LegendaryOS/LegendaryOS-Updates.git
+
+#wchodzimy do katalogu
+cd LegendaryOS-Updates
+
+#aktuakizujemy katalogu
+
