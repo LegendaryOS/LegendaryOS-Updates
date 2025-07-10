@@ -74,8 +74,7 @@ echo -e "\n>>> Aktualizacja Snap..."
 spinner $!
 
 ### Skrypt aktualizacji aplikacji LegendaryOS ###
-echo -e "\n>>> Aktualizacja aplikacji LegendaryOS..."
-/usr/bin/Update-Legendary-Apps.sh >> "$LOG_FILE" 2>&1
+
 
 ### Skrypt aktualizacji kernel TKG ###
 echo -e "\n>>> Aktualizacja TKG Kernel..."
