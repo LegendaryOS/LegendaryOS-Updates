@@ -75,7 +75,7 @@ spinner $!
 
 ### Skrypt aktualizacji aplikacji LegendaryOS ###
 echo -e "\n>>> Aktualizacja aplikacji LegendaryOS..."
-/usr/share/LegendaryOS/Bin/Update-Legendary-Apps.sh >> "$LOG_FILE" 2>&1
+/usr/bin/Update-Legendary-Apps.sh >> "$LOG_FILE" 2>&1
 
 ### Skrypt aktualizacji kernel TKG ###
 echo -e "\n>>> Aktualizacja TKG Kernel..."
