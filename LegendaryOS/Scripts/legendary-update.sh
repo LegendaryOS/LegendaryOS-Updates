@@ -2,7 +2,7 @@
 
 # LegendaryOS Full Update Script
 # Autor: Michał (dla LegendaryOS)
-# Wersja: 1.3 bez emotek, z logowaniem i falującym spinnerem
+# Wersja: 1.4 openSUSE, bez emotek, z logowaniem i falującym spinnerem
 
 LOG_FILE="/tmp/legendary-update.log"
 
@@ -52,16 +52,15 @@ sudo fwupdmgr get-updates >> "$LOG_FILE" 2>&1 && \
 sudo fwupdmgr update -y >> "$LOG_FILE" 2>&1) &
 spinner $!
 
-### Aktualizacja APT ###
-echo -e "\n>>> Aktualizacja pakietów APT..."
-(sudo apt update >> "$LOG_FILE" 2>&1 && \
-sudo apt upgrade -y >> "$LOG_FILE" 2>&1) &
+### Aktualizacja zypper ###
+echo -e "\n>>> Aktualizacja pakietów zypper..."
+(sudo zypper refresh >> "$LOG_FILE" 2>&1 && \
+sudo zypper update -y >> "$LOG_FILE" 2>&1) &
 spinner $!
 
-### Autoremove i autoclean ###
+### Autoremove ###
 echo -e "\n>>> Usuwanie niepotrzebnych pakietów..."
-(sudo apt autoremove -y >> "$LOG_FILE" 2>&1 && \
-sudo apt autoclean >> "$LOG_FILE" 2>&1) &
+(sudo zypper remove --clean-deps $(zypper packages --orphaned | awk 'NR>4 {print $3}') >> "$LOG_FILE" 2>&1) &
 spinner $!
 
 ### Aktualizacja Flatpak ###
@@ -78,6 +77,10 @@ spinner $!
 echo -e "\n>>> Aktualizacja aplikacji LegendaryOS..."
 /usr/share/LegendaryOS/Bin/Update-Legendary-Apps.sh >> "$LOG_FILE" 2>&1
 
+### Skrypt aktualizacji kernel TKG ###
+echo -e "\n>>> Aktualizacja TKG Kernel..."
+/usr/bin/update-tkg-kernel.sh >> "$LOG_FILE" 2>&1
+
 # Zakończenie i wybór akcji
 echo -e "\n========================================="
 echo "Aktualizacja zakończona."
@@ -89,7 +92,6 @@ echo "(r) Reboot"
 echo "(l) Log out"
 echo "(e) Exit"
 echo "(t) Try again"
-echo "(o) Ponowna aktualizacja + menu"
 
 # Wczytanie pojedynczego klawisza bez ENTER
 read -n1 -s choice
@@ -114,10 +116,6 @@ case $choice in
         ;;
     t|T)
         echo "Ponowne uruchamianie skryptu..."
-        exec "$0"
-        ;;
-    o|O)
-        echo "Ponowna aktualizacja + powrót do menu..."
         exec "$0"
         ;;
     *)
