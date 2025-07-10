@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# LegendaryOS Full Update Script
-# Autor: Michał (dla LegendaryOS)
-# Wersja: 1.4 openSUSE, bez emotek, z logowaniem i falującym spinnerem
+# Legendary Update Script
+# Autor: LegendaryOS Team
+# Wersja: 0.1
 
 LOG_FILE="/tmp/legendary-update.log"
 
@@ -75,6 +75,82 @@ spinner $!
 
 ### Skrypt aktualizacji aplikacji LegendaryOS ###
 
+LOCAL_RELEASE_FILE="/home/$USER/.LegendaryOS/.release"
+GITHUB_REPO="https://github.com/LegendaryOS/LegendaryOS-Updates.git"
+TMP_DIR="/tmp/LegendaryOS-Updates"
+
+echo -e "\n>>> Sprawdzanie dostępnej wersji LegendaryOS..."
+
+# Pobranie najnowszego pliku ISO z SourceForge
+LATEST_ISO=$(curl -s "https://sourceforge.net/projects/legendaryos/files/" | \
+    grep -oP 'LegendaryOS-(Official|Blue)-V[0-9]+\.[0-9]+(\.[0-9]+)?\.ISO' | sort -V | tail -n1)
+
+if [[ -z "$LATEST_ISO" ]]; then
+    echo "Nie udało się pobrać najnowszej wersji z SourceForge." | tee -a "$LOG_FILE"
+else
+    echo "Najnowsza wersja na SourceForge: $LATEST_ISO" | tee -a "$LOG_FILE"
+
+    if [[ ! -f "$LOCAL_RELEASE_FILE" ]]; then
+        echo "Brak lokalnego pliku wersji $LOCAL_RELEASE_FILE. Zakładam brak wersji." | tee -a "$LOG_FILE"
+        LOCAL_VERSION="none"
+    else
+        LOCAL_VERSION=$(head -n1 "$LOCAL_RELEASE_FILE")
+    fi
+
+    echo "Lokalna wersja: $LOCAL_VERSION" | tee -a "$LOG_FILE"
+
+    extract_version() {
+        echo "$1" | grep -oP 'V[0-9]+\.[0-9]+(\.[0-9]+)?' | tr -d 'V'
+    }
+
+    local_ver_num=$(extract_version "$LOCAL_VERSION")
+    latest_ver_num=$(extract_version "$LATEST_ISO")
+
+    vercmp() {
+        local IFS=.
+        local i ver1=($1) ver2=($2)
+        for ((i=${#ver1[@]}; i<3; i++)); do ver1[i]=0; done
+        for ((i=${#ver2[@]}; i<3; i++)); do ver2[i]=0; done
+
+        for ((i=0; i<3; i++)); do
+            if ((10#${ver1[i]} > 10#${ver2[i]})); then
+                echo 1
+                return
+            elif ((10#${ver1[i]} < 10#${ver2[i]})); then
+                echo -1
+                return
+            fi
+        done
+        echo 0
+    }
+
+    cmp_result=$(vercmp "$local_ver_num" "$latest_ver_num")
+
+    if [[ "$local_ver_num" == "none" || $cmp_result -lt 0 ]]; then
+        echo -e "\n>>> Dostępna jest nowsza wersja LegendaryOS. Aktualizuję..." | tee -a "$LOG_FILE"
+
+        rm -rf "$TMP_DIR"
+        git clone "$GITHUB_REPO" "$TMP_DIR" >> "$LOG_FILE" 2>&1
+
+        if [[ ! -d "$TMP_DIR" ]]; then
+            echo "Błąd klonowania repozytorium." | tee -a "$LOG_FILE"
+            exit 1
+        fi
+
+        chmod +x "$TMP_DIR/unpack.sh"
+        echo "Uruchamiam skrypt unpack.sh z sudo..." | tee -a "$LOG_FILE"
+        sudo "$TMP_DIR/unpack.sh" >> "$LOG_FILE" 2>&1
+
+        if [[ $? -eq 0 ]]; then
+            echo "Aktualizacja LegendaryOS zakończona sukcesem." | tee -a "$LOG_FILE"
+        else
+            echo "Błąd podczas aktualizacji LegendaryOS." | tee -a "$LOG_FILE"
+            exit 1
+        fi
+    else
+        echo "Twoja wersja LegendaryOS ($LOCAL_VERSION) jest najnowsza. Aktualizacja nie jest potrzebna." | tee -a "$LOG_FILE"
+    fi
+fi
 
 ### Skrypt aktualizacji kernel TKG ###
 echo -e "\n>>> Aktualizacja TKG Kernel..."
@@ -86,13 +162,12 @@ echo "Aktualizacja zakończona."
 echo "Log zapisany w $LOG_FILE"
 
 echo -e "\nWybierz opcję:"
-echo "(s) Shutdown"
-echo "(r) Reboot"
-echo "(l) Log out"
-echo "(e) Exit"
-echo "(t) Try again"
+echo "(S)hutdown"
+echo "(R)eboot"
+echo "(L)og out"
+echo "(E)xit"
+echo "(T)ry again"
 
-# Wczytanie pojedynczego klawisza bez ENTER
 read -n1 -s choice
 echo ""
 
