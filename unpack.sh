@@ -25,6 +25,9 @@ mv LegendaryOS/Scripts/Kernel-Updater/etc/systemd/system/update-tkg-kernel.timer
 mv /LegendaryOS/Scripts/update-tkg-kernel.sh /usr/bin/
 chmod a+x /usr/bin/update-tkg-kernel.sh
 
+#aktuakuzacja <===> .release
+chmod a+x /home/$(whoami)/LegendaryOS-Updates/Update-Release.sh
+/home/$(whoami)/LegendaryOS-Updates/Update-Release.sh
 
 #aktualizacja <===> /usr/share/LegendaryOS/
 mv /home/$(whoami)/LegendaryOS-Updates/LegendaryOS/ /usr/share/
