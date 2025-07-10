@@ -1,5 +1,5 @@
 [Unit]
-Description=Andromeda Linux TKG Kernel Updater (Shutdown)
+Description=LegendaryOS TKG Kernel Updater (Shutdown)
 DefaultDependencies=no
 Before=poweroff.target reboot.target halt.target
 Requires=network-online.target
