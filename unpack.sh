@@ -31,7 +31,3 @@ chmod a+x /home/$(whoami)/LegendaryOS-Updates/Update-Release.sh
 
 #aktualizacja <===> /usr/share/LegendaryOS/
 mv /home/$(whoami)/LegendaryOS-Updates/LegendaryOS/ /usr/share/
-
-cd /usr/share/LegendaryOS/Legendary-Apps/Nova-Play/
-npm install
-
