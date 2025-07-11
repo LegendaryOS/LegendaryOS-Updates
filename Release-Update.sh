@@ -40,5 +40,22 @@ mkdir -p "$DST_DIR"
 
 # Kopiuj i zmień nazwę pliku
 cp "$SRC_FILE" "$DST_DIR/.release"
-
 echo "Plik $SRC_FILE został skopiowany do $DST_DIR/.release"
+
+# Jeżeli Blue Edition, wykonaj dodatkowe komendy npm
+if [[ "$VARIANT" == "Blue Edition" ]]; then
+  echo "#aktualizacja - instalacja npm dla Blue Edition"
+  
+  echo "Instalacja w /usr/share/LegendaryOS/Legendary-Apps/Nova-Play/"
+  cd /usr/share/LegendaryOS/Legendary-Apps/Nova-Play/ || { echo "Nie można wejść do katalogu Nova-Play"; exit 4; }
+  npm install || { echo "npm install nie powiódł się w Nova-Play"; exit 5; }
+  
+  # Powtórzone npm install w tym samym katalogu (jeśli ma być 2 razy)
+  npm install || { echo "npm install nie powiódł się w Nova-Play (drugi raz)"; exit 6; }
+  
+  echo "Instalacja w /usr/share/LegendaryOS/Legendary-Apps/Sava-Browser/fronted/"
+  cd /usr/share/LegendaryOS/Legendary-Apps/Sava-Browser/fronted/ || { echo "Nie można wejść do katalogu Sava-Browser/frontend"; exit 7; }
+  npm install || { echo "npm install nie powiódł się w Sava-Browser/fronted"; exit 8; }
+  
+  echo "Aktualizacja aplikacji legendaryos zakończona."
+fi
