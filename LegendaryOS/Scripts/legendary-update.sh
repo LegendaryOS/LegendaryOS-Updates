@@ -1,13 +1,18 @@
 #!/bin/bash
-
-# Legendary Update Script
-# Autor: LegendaryOS Team
-# Wersja: 0.1
+# Legendary Update Script for openMamba
+# Autor: LegendaryOS Team (rozbudowane przez ChatGPT)
+# Wersja: 0.2
 
 LOG_FILE="/tmp/legendary-update.log"
+LOCAL_RELEASE_FILE="/home/$USER/.LegendaryOS/.release"
+GITHUB_REPO="https://github.com/LegendaryOS/LegendaryOS-Updates.git"
+TMP_DIR="/tmp/LegendaryOS-Updates"
 
-# Czyszczenie logu przed uruchomieniem
-> "$LOG_FILE"
+# Domyślne flagi
+DO_FIRMWARE=true
+DO_ZYPPER=true
+DO_FLATPAK=true
+DO_SNAP=true
 
 # Funkcja spinnera (falujący pasek)
 spinner() {
@@ -15,20 +20,35 @@ spinner() {
     local delay=0.1
     local frames=(
         "[ <=>         ]"
+        "[         <=> ]"
         "[ <==>        ]"
+        "[        <==> ]"
         "[ <===>       ]"
+        "[       <===> ]"
         "[ <====>      ]"
+        "[      <====> ]"
         "[ <=====>     ]"
+        "[     <=====> ]"
         "[ <======>    ]"
+        "[    <======> ]"
         "[ <=======>   ]"
+        "[   <=======> ]"
         "[ <========>  ]"
+        "[   <=======> ]"
         "[ <=======>   ]"
+        "[   <=======> ]"
         "[ <======>    ]"
+        "[    <======> ]"
         "[ <=====>     ]"
+        "[     <=====> ]"
         "[ <====>      ]"
+        "[      <====> ]"
         "[ <===>       ]"
+        "[       <===> ]"
         "[ <==>        ]"
+        "[        <==> ]"
         "[ <=>         ]"
+        "[         <=> ]"
     )
 
     while ps -p $pid &>/dev/null; do
@@ -40,48 +60,96 @@ spinner() {
     echo -ne "\r>>> Zakończono.             \n"
 }
 
-# Nagłówek
+# Sprawdzenie uprawnień sudo
+if [[ $EUID -ne 0 ]]; then
+    echo "Ten skrypt wymaga uprawnień administratora. Uruchom ponownie przez sudo." | tee -a "$LOG_FILE"
+    exit 1
+fi
+
+# Przetwarzanie argumentów
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --no-firmware) DO_FIRMWARE=false ;;
+        --no-zypper) DO_ZYPPER=false ;;
+        --no-flatpak) DO_FLATPAK=false ;;
+        --no-snap) DO_SNAP=false ;;
+        *) echo "Nieznany argument: $1" ;;
+    esac
+    shift
+done
+
+# Czyszczenie logu
+> "$LOG_FILE"
+
 clear
 echo "====== [ LegendaryOS FULL UPDATE ] ======"
 echo "Log zapisywany w $LOG_FILE"
 
-### Aktualizacja firmware ###
-echo -e "\n>>> Aktualizacja firmware..."
-(sudo fwupdmgr refresh >> "$LOG_FILE" 2>&1 && \
-sudo fwupdmgr get-updates >> "$LOG_FILE" 2>&1 && \
-sudo fwupdmgr update -y >> "$LOG_FILE" 2>&1) &
-spinner $!
+backup_files() {
+    echo -e "\n>>> Tworzę kopię zapasową ważnych plików konfiguracyjnych..."
+    BACKUP_DIR="/home/$USER/.LegendaryOS/backup-$(date +%Y%m%d-%H%M%S)"
+    mkdir -p "$BACKUP_DIR"
+    # Dodaj pliki do backupu poniżej
+    cp -r /etc/zypp "$BACKUP_DIR/" 2>/dev/null
+    cp -r /etc/fwupd "$BACKUP_DIR/" 2>/dev/null
+    cp -r /home/$USER/.config "$BACKUP_DIR/" 2>/dev/null
+    echo "Backup utworzony w $BACKUP_DIR" | tee -a "$LOG_FILE"
+}
 
-### Aktualizacja zypper ###
-echo -e "\n>>> Aktualizacja pakietów zypper..."
-(sudo zypper refresh >> "$LOG_FILE" 2>&1 && \
-sudo zypper update -y >> "$LOG_FILE" 2>&1) &
-spinner $!
+# Backup
+backup_files
 
-### Autoremove ###
-echo -e "\n>>> Usuwanie niepotrzebnych pakietów..."
-(sudo zypper remove --clean-deps $(zypper packages --orphaned | awk 'NR>4 {print $3}') >> "$LOG_FILE" 2>&1) &
-spinner $!
+if $DO_FIRMWARE; then
+    echo -e "\n>>> Aktualizacja firmware..."
+    (fwupdmgr refresh >> "$LOG_FILE" 2>&1 && \
+     fwupdmgr get-updates >> "$LOG_FILE" 2>&1 && \
+     fwupdmgr update -y >> "$LOG_FILE" 2>&1) &
+    spinner $!
+else
+    echo "Pominięto aktualizację firmware (--no-firmware)" | tee -a "$LOG_FILE"
+fi
 
-### Aktualizacja Flatpak ###
-echo -e "\n>>> Aktualizacja Flatpak..."
-(flatpak update -y >> "$LOG_FILE" 2>&1) &
-spinner $!
+if $DO_ZYPPER; then
+    echo -e "\n>>> Aktualizacja pakietów zypper..."
+    (zypper refresh >> "$LOG_FILE" 2>&1 && \
+     zypper update -y >> "$LOG_FILE" 2>&1) &
+    spinner $!
 
-### Aktualizacja Snap ###
-echo -e "\n>>> Aktualizacja Snap..."
-(sudo snap refresh >> "$LOG_FILE" 2>&1) &
-spinner $!
+    echo -e "\n>>> Czyszczenie cache zypper..."
+    (zypper clean --all >> "$LOG_FILE" 2>&1) &
+    spinner $!
+else
+    echo "Pominięto aktualizację zypper (--no-zypper)" | tee -a "$LOG_FILE"
+fi
 
-### Skrypt aktualizacji aplikacji LegendaryOS ###
+echo -e "\n>>> Usuwanie niepotrzebnych pakietów orphan..."
+ORPHANED=$(zypper packages --orphaned | awk 'NR>4 {print $3}')
+if [[ -n "$ORPHANED" ]]; then
+    (zypper remove --clean-deps -y $ORPHANED >> "$LOG_FILE" 2>&1) &
+    spinner $!
+else
+    echo "Brak niepotrzebnych pakietów do usunięcia." | tee -a "$LOG_FILE"
+fi
 
-LOCAL_RELEASE_FILE="/home/$USER/.LegendaryOS/.release"
-GITHUB_REPO="https://github.com/LegendaryOS/LegendaryOS-Updates.git"
-TMP_DIR="/tmp/LegendaryOS-Updates"
+if $DO_FLATPAK; then
+    echo -e "\n>>> Aktualizacja Flatpak..."
+    (flatpak update -y >> "$LOG_FILE" 2>&1) &
+    spinner $!
+else
+    echo "Pominięto aktualizację Flatpak (--no-flatpak)" | tee -a "$LOG_FILE"
+fi
 
+if $DO_SNAP; then
+    echo -e "\n>>> Aktualizacja Snap..."
+    (snap refresh >> "$LOG_FILE" 2>&1) &
+    spinner $!
+else
+    echo "Pominięto aktualizację Snap (--no-snap)" | tee -a "$LOG_FILE"
+fi
+
+# Aktualizacja LegendaryOS z repozytorium GitHub/SourceForge
 echo -e "\n>>> Sprawdzanie dostępnej wersji LegendaryOS..."
 
-# Pobranie najnowszego pliku ISO z SourceForge
 LATEST_ISO=$(curl -s "https://sourceforge.net/projects/legendaryos/files/" | \
     grep -oP 'LegendaryOS-(Official|Blue)-V[0-9]+\.[0-9]+(\.[0-9]+)?\.ISO' | sort -V | tail -n1)
 
@@ -152,11 +220,10 @@ else
     fi
 fi
 
-### Skrypt aktualizacji kernel TKG ###
+# Aktualizacja kernel TKG
 echo -e "\n>>> Aktualizacja TKG Kernel..."
 /usr/bin/update-tkg-kernel.sh >> "$LOG_FILE" 2>&1
 
-# Zakończenie i wybór akcji
 echo -e "\n========================================="
 echo "Aktualizacja zakończona."
 echo "Log zapisany w $LOG_FILE"
