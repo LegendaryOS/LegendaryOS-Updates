@@ -1,7 +1,7 @@
 #!/bin/bash
 # Legendary Update Script for openMamba
-# Autor: LegendaryOS Team (rozbudowane przez Grok)
-# Wersja: 0.5
+# Autor: LegendaryOS Team
+# Wersja: 0.1
 
 # Kolory ANSI
 RED='\033[1;31m'
