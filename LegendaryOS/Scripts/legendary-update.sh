@@ -12,7 +12,7 @@ TMP_DIR="/tmp/LegendaryOS-Updates"
 DO_FIRMWARE=true
 DO_ZYPPER=true
 DO_FLATPAK=true
-DO_SNAP=true
+# DO_SNAP usunięte
 
 # Funkcja spinnera (falujący pasek)
 spinner() {
@@ -70,9 +70,9 @@ fi
 while [[ $# -gt 0 ]]; do
     case $1 in
         --no-firmware) DO_FIRMWARE=false ;;
-        --no-zypper) DO_ZYPPER=false ;;
+        --no-pacman) DO_ZYPPER=false ;;
         --no-flatpak) DO_FLATPAK=false ;;
-        --no-snap) DO_SNAP=false ;;
+        # --no-snap usunięte
         *) echo "Nieznany argument: $1" ;;
     esac
     shift
@@ -87,7 +87,7 @@ echo "Log zapisywany w $LOG_FILE"
 
 backup_files() {
     echo -e "\n>>> Tworzę kopię zapasową ważnych plików konfiguracyjnych..."
-    BACKUP_DIR="/home/$USER/.LegendaryOS/backup-$(date +%Y%m%d-%H%M%S)"
+    BACKUP_DIR="tmp/Legendary-Update-$(date +%Y%m%d-%H%M%S)"
     mkdir -p "$BACKUP_DIR"
     # Dodaj pliki do backupu poniżej
     cp -r /etc/zypp "$BACKUP_DIR/" 2>/dev/null
@@ -139,13 +139,7 @@ else
     echo "Pominięto aktualizację Flatpak (--no-flatpak)" | tee -a "$LOG_FILE"
 fi
 
-if $DO_SNAP; then
-    echo -e "\n>>> Aktualizacja Snap..."
-    (snap refresh >> "$LOG_FILE" 2>&1) &
-    spinner $!
-else
-    echo "Pominięto aktualizację Snap (--no-snap)" | tee -a "$LOG_FILE"
-fi
+# Usunięto sekcję Snap
 
 # Aktualizacja LegendaryOS z repozytorium GitHub/SourceForge
 echo -e "\n>>> Sprawdzanie dostępnej wersji LegendaryOS..."
