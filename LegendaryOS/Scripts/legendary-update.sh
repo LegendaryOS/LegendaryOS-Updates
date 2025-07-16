@@ -1,260 +1,242 @@
 #!/bin/bash
-# Legendary Update Script
-# Autor: LegendaryOS Team
-# Wersja: 0.1
 
-LOG_FILE="/tmp/legendary-update.log"
-LOCAL_RELEASE_FILE="/home/$USER/.LegendaryOS/.release"
-GITHUB_REPO="https://github.com/LegendaryOS/LegendaryOS-Updates.git"
-TMP_DIR="/tmp/LegendaryOS-Updates"
+# Plik logu
+LOGFILE="/tmp/legendary-update.log"
 
-# Domyślne flagi
-DO_FIRMWARE=true
-DO_ZYPPER=true
-DO_FLATPAK=true
-# DO_SNAP usunięte
+# Kolory i style (256 kolorów + bold)
+RESET="\e[0m"
+BOLD="\e[1m"
 
-# Funkcja spinnera (falujący pasek)
-spinner() {
-    local pid=$1
-    local delay=0.1
-    local frames=(
-        "[ <=>         ]"
-        "[         <=> ]"
-        "[ <==>        ]"
-        "[        <==> ]"
-        "[ <===>       ]"
-        "[       <===> ]"
-        "[ <====>      ]"
-        "[      <====> ]"
-        "[ <=====>     ]"
-        "[     <=====> ]"
-        "[ <======>    ]"
-        "[    <======> ]"
-        "[ <=======>   ]"
-        "[   <=======> ]"
-        "[ <========>  ]"
-        "[   <=======> ]"
-        "[ <=======>   ]"
-        "[   <=======> ]"
-        "[ <======>    ]"
-        "[    <======> ]"
-        "[ <=====>     ]"
-        "[     <=====> ]"
-        "[ <====>      ]"
-        "[      <====> ]"
-        "[ <===>       ]"
-        "[       <===> ]"
-        "[ <==>        ]"
-        "[        <==> ]"
-        "[ <=>         ]"
-        "[         <=> ]"
-    )
+FG_TITLE="\e[38;5;81m"      # jasny cyjan
+BG_TITLE="\e[48;5;236m"     # ciemnoszary
 
-    while ps -p $pid &>/dev/null; do
-        for frame in "${frames[@]}"; do
-            echo -ne "\r>>> $frame "
-            sleep $delay
-        done
-    done
-    echo -ne "\r>>> Zakończono.             \n"
+FG_HEADER="\e[38;5;226m"    # żółty
+BG_HEADER="\e[48;5;238m"    # ciemnoszary
+
+FG_SUCCESS="\e[38;5;34m"    # zielony
+FG_WARN="\e[38;5;208m"      # pomarańczowy
+FG_ERROR="\e[38;5;196m"     # czerwony
+FG_INFO="\e[38;5;39m"       # niebieski
+
+FG_PROMPT="\e[38;5;45m"     # turkusowy
+
+# Animowany pasek postępu - lekko wygładzony i ładniejszy, zachowując Twój wzór
+progress_frames=(
+"[ <=>         ]"
+"[   <=>       ]"
+"[     <=>     ]"
+"[       <=>   ]"
+"[         <=> ]"
+"[       <=>   ]"
+"[     <=>     ]"
+"[   <=>       ]"
+"[ <==>        ]"
+"[   <==>      ]"
+"[     <==>    ]"
+"[       <==>  ]"
+"[         <==>]"
+"[       <==>  ]"
+"[     <==>    ]"
+"[   <==>      ]"
+"[ <===>       ]"
+"[   <===>     ]"
+"[     <===>   ]"
+"[       <===> ]"
+"[         <===>]"
+"[       <===> ]"
+"[     <===>   ]"
+"[   <===>     ]"
+"[ <====>      ]"
+"[   <====>    ]"
+"[     <====>  ]"
+"[       <====>]"
+"[     <====>  ]"
+"[   <====>    ]"
+"[ <=====>     ]"
+"[   <=====>   ]"
+"[     <=====> ]"
+"[       <=====>]"
+"[     <=====> ]"
+"[   <=====>   ]"
+"[ <======>    ]"
+"[   <======>  ]"
+"[     <======>]"
+"[   <======>  ]"
+"[ <=======>   ]"
+"[   <=======> ]"
+"[     <=======>]"
+"[   <=======> ]"
+"[ <========>  ]"
+"[   <========>]"
+
+)
+
+# Ukryj kursor
+hide_cursor() { tput civis; }
+
+# Pokaż kursor
+show_cursor() { tput cnorm; }
+
+# Animacja paska postępu, działa podczas działania procesu o PID
+show_progress() {
+  local pid=$1
+  local i=0
+  hide_cursor
+
+  while kill -0 "$pid" 2>/dev/null; do
+    # Wypisz ramkę z kolorem info
+    echo -ne "\r${FG_INFO}${progress_frames[i]}${RESET}"
+    i=$(( (i + 1) % ${#progress_frames[@]} ))
+    sleep 0.1
+  done
+
+  # Wyczyść linię po animacji
+  echo -ne "\r$(printf '%*s' ${#progress_frames[0]} '')\r"
+  show_cursor
 }
 
-# Sprawdzenie uprawnień sudo
-if [[ $EUID -ne 0 ]]; then
-    echo "Ten skrypt wymaga uprawnień administratora. Uruchom ponownie przez sudo." | tee -a "$LOG_FILE"
-    exit 1
-fi
+# Obsługa przerwania Ctrl+C - sprzątaj i wyjdź
+trap_ctrlc() {
+  echo -e "\n${FG_ERROR}${BOLD}Przerwano aktualizację!${RESET}"
+  show_cursor
+  exit 130
+}
+trap trap_ctrlc INT
 
-# Przetwarzanie argumentów
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --no-firmware) DO_FIRMWARE=false ;;
-        --no-pacman) DO_ZYPPER=false ;;
-        --no-flatpak) DO_FLATPAK=false ;;
-        # --no-snap usunięte
-        *) echo "Nieznany argument: $1" ;;
-    esac
-    shift
-done
-
-# Czyszczenie logu
-> "$LOG_FILE"
-
-clear
-echo "====== [ LegendaryOS FULL UPDATE ] ======"
-echo "Log zapisywany w $LOG_FILE"
-
-backup_files() {
-    echo -e "\n>>> Tworzę kopię zapasową ważnych plików konfiguracyjnych..."
-    BACKUP_DIR="tmp/Legendary-Update-$(date +%Y%m%d-%H%M%S)"
-    mkdir -p "$BACKUP_DIR"
-    # Dodaj pliki do backupu poniżej
-    cp -r /etc/zypp "$BACKUP_DIR/" 2>/dev/null
-    cp -r /etc/fwupd "$BACKUP_DIR/" 2>/dev/null
-    cp -r /home/$USER/.config "$BACKUP_DIR/" 2>/dev/null
-    echo "Backup utworzony w $BACKUP_DIR" | tee -a "$LOG_FILE"
+# Ramka tytułowa
+print_title() {
+  local width=48
+  echo -e "${BG_TITLE}${FG_TITLE}${BOLD}┌$(printf '─%.0s' $(seq 1 $width))┐${RESET}"
+  echo -e "${BG_TITLE}${FG_TITLE}${BOLD}│            LEGENDARY UPDATE SCRIPT            │${RESET}"
+  echo -e "${BG_TITLE}${FG_TITLE}${BOLD}└$(printf '─%.0s' $(seq 1 $width))┘${RESET}"
+  echo
 }
 
-# Backup
-backup_files
+# Wypisywanie statusu z kolorami i ikonami
+print_status() {
+  local msg="$1"
+  local type="$2"
+  case "$type" in
+    success) echo -e "${FG_SUCCESS}✔ ${msg}${RESET}" ;;
+    warn)    echo -e "${FG_WARN}⚠ ${msg}${RESET}" ;;
+    error)   echo -e "${FG_ERROR}✖ ${msg}${RESET}" ;;
+    info|*)  echo -e "${FG_INFO}➜ ${msg}${RESET}" ;;
+  esac
+}
 
-if $DO_FIRMWARE; then
-    echo -e "\n>>> Aktualizacja firmware..."
-    (fwupdmgr refresh >> "$LOG_FILE" 2>&1 && \
-     fwupdmgr get-updates >> "$LOG_FILE" 2>&1 && \
-     fwupdmgr update -y >> "$LOG_FILE" 2>&1) &
-    spinner $!
-else
-    echo "Pominięto aktualizację firmware (--no-firmware)" | tee -a "$LOG_FILE"
-fi
+# Funkcje aktualizacji:
 
-if $DO_ZYPPER; then
-    echo -e "\n>>> Aktualizacja pakietów zypper..."
-    (zypper refresh >> "$LOG_FILE" 2>&1 && \
-     zypper update -y >> "$LOG_FILE" 2>&1) &
-    spinner $!
+update_pacman() {
+  print_status "Aktualizacja systemu pacman (sudo pacman -Syu)..." info
+  sudo pacman -Syu --noconfirm >> "$LOGFILE" 2>&1 &
+  local pid=$!
+  show_progress "$pid"
+  wait "$pid"
+  if [[ $? -eq 0 ]]; then
+    print_status "System (pacman) zaktualizowany pomyślnie." success
+  else
+    print_status "Błąd podczas aktualizacji pacmana! Sprawdź $LOGFILE" error
+  fi
+}
 
-    echo -e "\n>>> Czyszczenie cache zypper..."
-    (zypper clean --all >> "$LOG_FILE" 2>&1) &
-    spinner $!
-else
-    echo "Pominięto aktualizację zypper (--no-zypper)" | tee -a "$LOG_FILE"
-fi
+update_flatpak() {
+  if ! command -v flatpak &>/dev/null; then
+    print_status "flatpak nie jest zainstalowany, pomijam aktualizację flatpaków." warn
+    return
+  fi
 
-echo -e "\n>>> Usuwanie niepotrzebnych pakietów orphan..."
-ORPHANED=$(zypper packages --orphaned | awk 'NR>4 {print $3}')
-if [[ -n "$ORPHANED" ]]; then
-    (zypper remove --clean-deps -y $ORPHANED >> "$LOG_FILE" 2>&1) &
-    spinner $!
-else
-    echo "Brak niepotrzebnych pakietów do usunięcia." | tee -a "$LOG_FILE"
-fi
+  print_status "Aktualizacja flatpaków..." info
+  flatpak update -y >> "$LOGFILE" 2>&1 &
+  local pid=$!
+  show_progress "$pid"
+  wait "$pid"
+  if [[ $? -eq 0 ]]; then
+    print_status "Flatpaki zaktualizowane pomyślnie." success
+  else
+    print_status "Błąd podczas aktualizacji flatpaków! Sprawdź $LOGFILE" error
+  fi
+}
 
-if $DO_FLATPAK; then
-    echo -e "\n>>> Aktualizacja Flatpak..."
-    (flatpak update -y >> "$LOG_FILE" 2>&1) &
-    spinner $!
-else
-    echo "Pominięto aktualizację Flatpak (--no-flatpak)" | tee -a "$LOG_FILE"
-fi
+update_firmware() {
+  if ! command -v fwupdmgr &>/dev/null; then
+    print_status "fwupdmgr nie jest zainstalowany, pomijam aktualizację firmware." warn
+    return
+  fi
 
-# Usunięto sekcję Snap
+  print_status "Aktualizacja firmware (fwupdmgr)..." info
+  sudo fwupdmgr update >> "$LOGFILE" 2>&1 &
+  local pid=$!
+  show_progress "$pid"
+  wait "$pid"
+  if [[ $? -eq 0 ]]; then
+    print_status "Firmware zaktualizowany pomyślnie." success
+  else
+    print_status "Błąd podczas aktualizacji firmware! Sprawdź $LOGFILE" error
+  fi
+}
 
-# Aktualizacja LegendaryOS z repozytorium GitHub/SourceForge
-echo -e "\n>>> Sprawdzanie dostępnej wersji LegendaryOS..."
+# Menu po aktualizacji (bez Enter)
+post_update_menu() {
+  echo
+  echo -e "${BG_HEADER}${FG_HEADER}${BOLD} Co chcesz zrobić dalej? ${RESET}"
+  echo -e "  (${FG_PROMPT}E${RESET})xit — zamknij skrypt"
+  echo -e "  (${FG_PROMPT}T${RESET})ry again — ponów aktualizację"
+  echo -e "  (${FG_PROMPT}S${RESET})hutdown — wyłącz komputer"
+  echo -e "  (${FG_PROMPT}R${RESET})eboot — uruchom ponownie komputer"
+  echo -e "  (${FG_PROMPT}L${RESET})og out — wyloguj się z sesji"
+  echo -ne "${FG_PROMPT}Wciśnij literę: ${RESET}"
 
-LATEST_ISO=$(curl -s "https://sourceforge.net/projects/legendaryos/files/" | \
-    grep -oP 'LegendaryOS-(Official|Blue)-V[0-9]+\.[0-9]+(\.[0-9]+)?\.ISO' | sort -V | tail -n1)
+  # Ustawienia terminala - pojedynczy znak bez Enter
+  old_stty_cfg=$(stty -g)
+  stty -echo -icanon time 0 min 1
+  read -r -n 1 key
+  stty "$old_stty_cfg"
+  echo
 
-if [[ -z "$LATEST_ISO" ]]; then
-    echo "Nie udało się pobrać najnowszej wersji z SourceForge." | tee -a "$LOG_FILE"
-else
-    echo "Najnowsza wersja na SourceForge: $LATEST_ISO" | tee -a "$LOG_FILE"
-
-    if [[ ! -f "$LOCAL_RELEASE_FILE" ]]; then
-        echo "Brak lokalnego pliku wersji $LOCAL_RELEASE_FILE. Zakładam brak wersji." | tee -a "$LOG_FILE"
-        LOCAL_VERSION="none"
-    else
-        LOCAL_VERSION=$(head -n1 "$LOCAL_RELEASE_FILE")
-    fi
-
-    echo "Lokalna wersja: $LOCAL_VERSION" | tee -a "$LOG_FILE"
-
-    extract_version() {
-        echo "$1" | grep -oP 'V[0-9]+\.[0-9]+(\.[0-9]+)?' | tr -d 'V'
-    }
-
-    local_ver_num=$(extract_version "$LOCAL_VERSION")
-    latest_ver_num=$(extract_version "$LATEST_ISO")
-
-    vercmp() {
-        local IFS=.
-        local i ver1=($1) ver2=($2)
-        for ((i=${#ver1[@]}; i<3; i++)); do ver1[i]=0; done
-        for ((i=${#ver2[@]}; i<3; i++)); do ver2[i]=0; done
-
-        for ((i=0; i<3; i++)); do
-            if ((10#${ver1[i]} > 10#${ver2[i]})); then
-                echo 1
-                return
-            elif ((10#${ver1[i]} < 10#${ver2[i]})); then
-                echo -1
-                return
-            fi
-        done
-        echo 0
-    }
-
-    cmp_result=$(vercmp "$local_ver_num" "$latest_ver_num")
-
-    if [[ "$local_ver_num" == "none" || $cmp_result -lt 0 ]]; then
-        echo -e "\n>>> Dostępna jest nowsza wersja LegendaryOS. Aktualizuję..." | tee -a "$LOG_FILE"
-
-        rm -rf "$TMP_DIR"
-        git clone "$GITHUB_REPO" "$TMP_DIR" >> "$LOG_FILE" 2>&1
-
-        if [[ ! -d "$TMP_DIR" ]]; then
-            echo "Błąd klonowania repozytorium." | tee -a "$LOG_FILE"
-            exit 1
-        fi
-
-        chmod +x "$TMP_DIR/unpack.sh"
-        echo "Uruchamiam skrypt unpack.sh z sudo..." | tee -a "$LOG_FILE"
-        sudo "$TMP_DIR/unpack.sh" >> "$LOG_FILE" 2>&1
-
-        if [[ $? -eq 0 ]]; then
-            echo "Aktualizacja LegendaryOS zakończona sukcesem." | tee -a "$LOG_FILE"
-        else
-            echo "Błąd podczas aktualizacji LegendaryOS." | tee -a "$LOG_FILE"
-            exit 1
-        fi
-    else
-        echo "Twoja wersja LegendaryOS ($LOCAL_VERSION) jest najnowsza. Aktualizacja nie jest potrzebna." | tee -a "$LOG_FILE"
-    fi
-fi
-
-# Aktualizacja kernel TKG
-echo -e "\n>>> Aktualizacja TKG Kernel..."
-/usr/bin/update-tkg-kernel.sh >> "$LOG_FILE" 2>&1
-
-echo -e "\n========================================="
-echo "Aktualizacja zakończona."
-echo "Log zapisany w $LOG_FILE"
-
-echo -e "\nWybierz opcję:"
-echo "(S)hutdown"
-echo "(R)eboot"
-echo "(L)og out"
-echo "(E)xit"
-echo "(T)ry again"
-
-read -n1 -s choice
-echo ""
-
-case $choice in
-    s|S)
-        echo "Wyłączanie systemu..."
-        systemctl poweroff
-        ;;
-    r|R)
-        echo "Restartowanie systemu..."
-        systemctl reboot
-        ;;
-    l|L)
-        echo "Wylogowywanie użytkownika..."
+  case "${key,,}" in
+    e)
+      print_status "Zamykanie skryptu." info
+      exit 0
+      ;;
+    t)
+      print_status "Ponawiam aktualizację..." info
+      main
+      ;;
+    s)
+      print_status "Wyłączanie komputera..." info
+      sudo shutdown now
+      ;;
+    r)
+      print_status "Restartowanie komputera..." info
+      sudo reboot
+      ;;
+    l)
+      print_status "Wylogowywanie z sesji..." info
+      if command -v gnome-session-quit &>/dev/null; then
+        gnome-session-quit --logout --no-prompt
+      elif command -v pkill &>/dev/null; then
         pkill -KILL -u "$USER"
-        ;;
-    e|E)
-        echo "Wyjście ze skryptu."
-        exit 0
-        ;;
-    t|T)
-        echo "Ponowne uruchamianie skryptu..."
-        exec "$0"
-        ;;
+      else
+        print_status "Nie udało się wylogować - brak znanej metody." warn
+      fi
+      ;;
     *)
-        echo "Nieznana opcja. Wyjście."
-        exit 1
-        ;;
-esac
+      print_status "Nieznana opcja, zamykam skrypt." error
+      exit 1
+      ;;
+  esac
+}
+
+main() {
+  clear
+  print_title
+  echo "START aktualizacji: $(date)" >> "$LOGFILE"
+  update_pacman
+  update_flatpak
+  update_firmware
+  echo "WSZYSTKIE aktualizACJE zakończone: $(date)" >> "$LOGFILE"
+  print_status "Wszystkie aktualizacje zakończone pomyślnie." success
+  post_update_menu
+}
+
+main
