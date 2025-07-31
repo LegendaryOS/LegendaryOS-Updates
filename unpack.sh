@@ -6,24 +6,22 @@ sudo su
 #aktualizacja systemu
 legendary-update
 
-#usuwanie katalogu /LegendaryOS
+#usuwanie starego katalogu /LegendaryOS
 rm -rf /usr/share/LegendaryOS
 
 #klonowanie repo
 git clone https://github.com/LegendaryOS/LegendaryOS-Updates.git
 
 #wchodzimy do katalogu
-cd LegendaryOS-Updates
+cd /tmp/LegendaryOS-Updates
 
 #aktuakizujemy katalogu
-mv /LegendaryOS/Scripts/legendary-update.sh /usr/bin/
-chmod a+x /usr/bin/legendary-update.sh
+mv /tmp/LegendaryOS-Updates/Config-Files/legendary-update /bin/
+chmod a+x //bin/legendary-update
 
-mv /LegendaryOS/Scripts/Kernel-Updater/etc/systemd/system/update-tkg-kernel.service /etc/systemd/system/
-mv LegendaryOS/Scripts/Kernel-Updater/etc/systemd/system/update-tkg-kernel.timer /etc/systemd/system/
-
-mv /LegendaryOS/Scripts/update-tkg-kernel.sh /usr/bin/
-chmod a+x /usr/bin/update-tkg-kernel.sh
-
-#aktualizacja <===> /usr/share/LegendaryOS/
+#Przenosimy LegendaryOS do /usr/share
 mv /home/$(whoami)/LegendaryOS-Updates/LegendaryOS/ /usr/share/
+
+#aktualizacja legendary mode
+cd /usr/share/LegendaryOS/Scripts/Legendary-Mode/electron-app/
+npm install
