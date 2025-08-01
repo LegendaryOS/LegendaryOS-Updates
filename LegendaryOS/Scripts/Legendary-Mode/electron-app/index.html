@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legendary Mode</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+</head>
+<body class="flex flex-col items-center justify-center h-screen text-white bg-gradient-to-br from-black to-red-900 overflow-hidden">
+    <h1 class="text-5xl font-bold mb-12 glow-text" id="title">Legendary Mode</h1>
+    <div class="grid grid-cols-3 gap-6" id="launcher-grid">
+        <button class="launcher-btn bg-gray-900 p-6 rounded-xl flex flex-col items-center justify-center w-48 h-48" data-app="retroarch">
+            <img src="https://retroarch.com/favicon.ico" alt="RetroArch Icon" class="w-20 h-20 mb-3">
+            <span class="text-lg">RetroArch</span>
+        </button>
+        <button class="launcher-btn bg-gray-900 p-6 rounded-xl flex flex-col items-center justify-center w-48 h-48" data-app="legendarygames">
+            <img src="file:///usr/share/LegendaryOS/Scripts/Legendary-Games/legendary-games.png" alt="Legendary Games Icon" class="w-20 h-20 mb-3">
+            <span class="text-lg">Legendary Games</span>
+        </button>
+        <button class="launcher-btn bg-gray-900 p-6 rounded-xl flex flex-col items-center justify-center w-48 h-48" data-app="ea">
+            <img src="https://www.ea.com/favicon.ico" alt="EA Icon" class="w-20 h-20 mb-3">
+            <span class="text-lg">EA</span>
+        </button>
+        <button class="launcher-btn bg-gray-900 p-6 rounded-xl flex flex-col items-center justify-center w-48 h-48" data-app="battlenet">
+            <img src="https://blizzard.com/favicon.ico" alt="Battle.net Icon" class="w-20 h-20 mb-3">
+            <span class="text-lg">Battle.net</span>
+        </button>
+        <button class="launcher-btn bg-gray-900 p-6 rounded-xl flex flex-col items-center justify-center w-48 h-48" data-app="epicgames">
+            <img src="https://www.epicgames.com/favicon.ico" alt="Epic Games Icon" class="w-20 h-20 mb-3">
+            <span class="text-lg">Epic Games</span>
+        </button>
+    </div>
+    <div class="absolute bottom-4 left-4 flex space-x-4">
+        <button class="settings-btn bg-orange-600 text-black px-6 py-3 rounded-lg" id="settings-btn">Settings</button>
+        <button class="legendary-menu-btn bg-yellow-500 text-black px-6 py-3 rounded-lg" id="legendary-menu-btn">Legendary Menu</button>
+    </div>
+    <div id="legendary-menu" class="hidden absolute bg-gray-900 rounded-lg shadow-lg p-4 z-50">
+        <button class="block w-full text-left px-4 py-2 hover:bg-red-700 rounded menu-item" data-action="switchToPlasma">Switch to Plasma</button>
+        <button class="block w-full text-left px-4 py-2 hover:bg-red-700 rounded menu-item" data-action="shutdown">Shutdown</button>
+        <button class="block w-full text-left px-4 py-2 hover:bg-red-700 rounded menu-item" data-action="restart">Restart</button>
+        <button class="block w-full text-left px-4 py-2 hover:bg-red-700 rounded menu-item" data-action="sleep">Sleep</button>
+        <button class="block w-full text-left px-4 py-2 hover:bg-red-700 rounded menu-item" data-action="restartApps">Restart Apps</button>
+        <button class="block w-full text-left px-4 py-2 hover:bg-red-700 rounded menu-item" data-action="logout">Log Out</button>
+        <button class="block w-full text-left px-4 py-2 hover:bg-red-700 rounded menu-item" data-action="restartSway">Restart Sway</button>
+    </div>
+    <script>
+        let selectedIndex = 0;
+        const buttons = [...document.querySelectorAll('.launcher-btn'), document.getElementById('settings-btn'), document.getElementById('legendary-menu-btn')];
+
+        function updateSelection() {
+            buttons.forEach((btn, index) => {
+                btn.classList.toggle('selected', index === selectedIndex);
+            });
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (document.getElementById('legendary-menu').classList.contains('hidden')) {
+                if (e.key === 'ArrowRight') {
+                    selectedIndex = (selectedIndex + 1) % buttons.length;
+                    updateSelection();
+                } else if (e.key === 'ArrowLeft') {
+                    selectedIndex = (selectedIndex - 1 + buttons.length) % buttons.length;
+                    updateSelection();
+                } else if (e.key === 'Enter') {
+                    const selectedBtn = buttons[selectedIndex];
+                    if (selectedBtn.classList.contains('launcher-btn')) {
+                        const appName = selectedBtn.getAttribute('data-app');
+                        window.electronApi.launchApp(appName).catch(e => console.error(`Error launching ${appName}: ${e}`));
+                    } else if (selectedBtn.id === 'settings-btn') {
+                        window.electronApi.launchSettings().catch(e => console.error(`Error launching settings: ${e}`));
+                    } else if (selectedBtn.id === 'legendary-menu-btn') {
+                        document.getElementById('legendary-menu').classList.toggle('hidden');
+                        gsap.fromTo('#legendary-menu', { opacity: 0, y: -20 }, { opacity: 1, y: 0, duration: 0.5 });
+                        document.querySelectorAll('.menu-item').forEach((item, i) => {
+                            gsap.from(item, { duration: 0.5, x: -20, opacity: 0, delay: i * 0.05 });
+                        });
+                        selectedIndex = 0;
+                        updateMenuSelection();
+                    }
+                }
+            } else {
+                const menuItems = document.querySelectorAll('.menu-item');
+                if (e.key === 'ArrowDown') {
+                    selectedIndex = (selectedIndex + 1) % menuItems.length;
+                    updateMenuSelection();
+                } else if (e.key === 'ArrowUp') {
+                    selectedIndex = (selectedIndex - 1 + menuItems.length) % menuItems.length;
+                    updateMenuSelection();
+                } else if (e.key === 'Enter') {
+                    const selectedItem = menuItems[selectedIndex];
+                    const action = selectedItem.getAttribute('data-action');
+                    window.electronApi.systemAction(action).catch(e => console.error(`Error executing ${action}: ${e}`));
+                } else if (e.key === 'Escape') {
+                    document.getElementById('legendary-menu').classList.add('hidden');
+                    selectedIndex = buttons.length - 1; // Return to legendary-menu-btn
+                    updateSelection();
+                }
+            }
+        });
+
+        function updateMenuSelection() {
+            const menuItems = document.querySelectorAll('.menu-item');
+            menuItems.forEach((item, index) => {
+                item.classList.toggle('selected', index === selectedIndex);
+            });
+        }
+
+        document.querySelectorAll('.launcher-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const appName = btn.getAttribute('data-app');
+                try {
+                    await window.electronApi.launchApp(appName);
+                } catch (e) {
+                    console.error(`Error launching ${appName}: ${e}`);
+                }
+            });
+        });
+
+        document.getElementById('settings-btn').addEventListener('click', async () => {
+            try {
+                await window.electronApi.launchSettings();
+            } catch (e) {
+                console.error(`Error launching settings: ${e}`);
+            }
+        });
+
+        document.getElementById('legendary-menu-btn').addEventListener('click', () => {
+            const menu = document.getElementById('legendary-menu');
+            menu.classList.toggle('hidden');
+            gsap.fromTo('#legendary-menu', { opacity: 0, y: -20 }, { opacity: 1, y: 0, duration: 0.5 });
+            document.querySelectorAll('.menu-item').forEach((item, i) => {
+                gsap.from(item, { duration: 0.5, x: -20, opacity: 0, delay: i * 0.05 });
+            });
+            selectedIndex = 0;
+            updateMenuSelection();
+        });
+
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', async () => {
+                const action = item.getAttribute('data-action');
+                try {
+                    await window.electronApi.systemAction(action);
+                } catch (e) {
+                    console.error(`Error executing ${action}: ${e}`);
+                }
+            });
+        });
+
+        updateSelection();
+    </script>
+</body>
+</html>
