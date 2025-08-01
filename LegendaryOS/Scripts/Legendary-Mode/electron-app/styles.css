@@ -1,0 +1,79 @@
+body {
+    font-family: 'Orbitron', sans-serif;
+    background: linear-gradient(135deg, #000000, #7f0000);
+}
+
+.glow-text {
+    text-shadow: 0 0 5px #ff4500, 0 0 10px #ff4500, 0 0 20px #ff0000;
+    animation: glow 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+    from { text-shadow: 0 0 5px #ff4500, 0 0 10px #ff4500, 0 0 15px #ff0000; }
+    to { text-shadow: 0 0 10px #ff4500, 0 0 20px #ff4500, 0 0 30px #ff0000; }
+}
+
+.launcher-btn {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 4px 15px rgba(255, 69, 0, 0.5);
+    border: 2px solid #ffa500;
+}
+
+.launcher-btn:hover, .launcher-btn.selected {
+    transform: scale(1.1);
+    box-shadow: 0 10px 25px rgba(255, 69, 0, 0.8);
+    background: linear-gradient(45deg, #ff4500, #ffa500);
+}
+
+.settings-btn, .legendary-menu-btn {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 4px 10px rgba(255, 255, 0, 0.3);
+}
+
+.settings-btn:hover, .settings-btn.selected, .legendary-menu-btn:hover, .legendary-menu-btn.selected {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(255, 255, 0, 0.5);
+}
+
+.menu-item {
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.menu-item:hover, .menu-item.selected {
+    transform: translateX(5px);
+    background: linear-gradient(45deg, #ff4500, #ffa500);
+}
+
+.setting-panel {
+    box-shadow: 0 4px 15px rgba(255, 69, 0, 0.5);
+    border: 1px solid #ffa500;
+    transition: transform 0.3s ease;
+}
+
+.setting-panel:hover {
+    transform: translateY(-5px);
+}
+
+.setting-btn {
+    transition: background-color 0.3s ease, transform 0.3s ease;
+    box-shadow: 0 2px 8px rgba(255, 165, 0, 0.3);
+}
+
+.setting-btn:hover, .setting-btn.selected {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(255, 165, 0, 0.5);
+    background: linear-gradient(45deg, #ff4500, #ffa500);
+}
+
+#wifi-list, #bluetooth-list {
+max-height: 200px;
+overflow-y: auto;
+}
+
+.wifi-item, .bluetooth-item {
+    transition: background-color 0.2s ease;
+}
+
+.wifi-item:hover, .wifi-item.selected, .bluetooth-item:hover, .bluetooth-item.selected {
+    background: linear-gradient(45deg, #ff4500, #ffa500);
+}
