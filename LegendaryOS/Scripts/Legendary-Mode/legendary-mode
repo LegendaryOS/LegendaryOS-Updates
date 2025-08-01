@@ -1,0 +1,3 @@
+#!/bin/bash
+cd /usr/share/LegendaryOS/Scripts/Legendary-Mode/electron-app/
+npm start
