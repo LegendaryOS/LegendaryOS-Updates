@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Legendary Mode</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+</head>
+<body class="flex flex-col items-center justify-center h-screen text-white bg-gradient-to-br from-black to-red-900 overflow-hidden">
+    <h1 class="text-4xl font-bold mb-8 glow-text" id="settings-title">Settings</h1>
+    <div class="grid grid-cols-2 gap-6 w-3/4 max-w-3xl" id="settings-grid">
+        <div class="bg-gray-900 p-6 rounded-xl setting-panel">
+            <h2 class="text-lg font-bold mb-4" id="audio-title">Audio</h2>
+            <button class="w-full bg-orange-600 text-black py-2 rounded mb-2 hover:bg-orange-500 setting-btn" data-action="increaseVolume">Increase Volume</button>
+            <button class="w-full bg-orange-600 text-black py-2 rounded mb-2 hover:bg-orange-500 setting-btn" data-action="decreaseVolume">Decrease Volume</button>
+            <button class="w-full bg-orange-600 text-black py-2 rounded mb-2 hover:bg-orange-500 setting-btn" data-action="toggleMute">Toggle Mute</button>
+        </div>
+        <div class="bg-gray-900 p-6 rounded-xl setting-panel">
+            <h2 class="text-lg font-bold mb-4" id="display-title">Display</h2>
+            <button class="w-full bg-orange-600 text-black py-2 rounded mb-2 hover:bg-orange-500 setting-btn" data-action="increaseBrightness">Increase Brightness</button>
+            <button class="w-full bg-orange-600 text-black py-2 rounded mb-2 hover:bg-orange-500 setting-btn" data-action="decreaseBrightness">Decrease Brightness</button>
+            <button class="w-full bg-orange-600 text-black py-2 rounded mb-2 hover:bg-orange-500 setting-btn" data-action="toggleTheme">Toggle Dark/Light Mode</button>
+        </div>
+        <div class="bg-gray-900 p-6 rounded-xl setting-panel">
+            <h2 class="text-lg font-bold mb-4" id="network-title">Network</h2>
+            <button class="w-full bg-orange-600 text-black py-2 rounded mb-2 hover:bg-orange-500 setting-btn" data-action="showWifiSettings">Wi-Fi Settings</button>
+            <button class="w-full bg-orange-600 text-black py-2 rounded mb-2 hover:bg-orange-500 setting-btn" data-action="toggleWifi">Toggle Wi-Fi</button>
+            <button class="w-full bg-orange-600 text-black py-2 rounded mb-2 hover:bg-orange-500 setting-btn" data-action="showBluetoothSettings">Bluetooth</button>
+        </div>
+        <div class="bg-gray-900 p-6 rounded-xl setting-panel">
+            <h2 class="text-lg font-bold mb-4" id="power-title">Power</h2>
+            <button class="w-full bg-orange-600 text-black py-2 rounded mb-2 hover:bg-orange-500 setting-btn" data-action="power-saver">Power Saving</button>
+            <button class="w-full bg-orange-600 text-black py-2 rounded mb-2 hover:bg-orange-500 setting-btn" data-action="balanced">Balanced</button>
+            <button class="w-full bg-orange-600 text-black py-2 rounded mb-2 hover:bg-orange-500 setting-btn" data-action="performance">Performance</button>
+        </div>
+        <div class="bg-gray-900 p-6 rounded-xl setting-panel">
+            <h2 class="text-lg font-bold mb-4" id="general-title">General</h2>
+            <select id="language-select" class="w-full bg-gray-700 text-white py-2 rounded mb-2">
+                <option value="en">English</option>
+                <option value="pl">Polski</option>
+            </select>
+            <button class="w-full bg-orange-600 text-black py-2 rounded mb-2 hover:bg-orange-500 setting-btn" data-action="applyLanguage">Apply Language</button>
+        </div>
+    </div>
+    <div id="wifi-panel" class="hidden bg-gray-900 p-6 rounded-xl mt-6 w-3/4 max-w-2xl">
+        <h2 class="text-lg font-bold mb-4" id="wifi-title">Wi-Fi Settings</h2>
+        <div id="wifi-list"></div>
+        <input type="text" id="wifi-password" class="w-full bg-gray-700 text-white py-2 px-3 rounded mb-2" placeholder="Password (if required)">
+        <button class="w-full bg-orange-600 text-black py-2 rounded mb-2 hover:bg-orange-500 setting-btn" data-action="connectWifi">Connect</button>
+    </div>
+    <div id="bluetooth-panel" class="hidden bg-gray-900 p-6 rounded-xl mt-6 w-3/4 max-w-2xl">
+        <h2 class="text-lg font-bold mb-4" id="bluetooth-title">Bluetooth Devices</h2>
+        <div id="bluetooth-list"></div>
+        <button class="w-full bg-orange-600 text-black py-2 rounded mb-2 hover:bg-orange-500 setting-btn" data-action="scanBluetooth">Scan</button>
+        <button class="w-full bg-orange-600 text-black py-2 rounded mb-2 hover:bg-orange-500 setting-btn" data-action="pairBluetooth">Pair</button>
+    </div>
+    <button class="mt-6 bg-red-600 text-white px-6 py-3 rounded-lg setting-btn" id="close-btn">Close</button>
+    <script>
+        let selectedIndex = 0;
+        let currentPanel = 'settings-grid';
+        let buttons = [];
+
+        function updateSelection() {
+            buttons = currentPanel === 'settings-grid' ?
+                [...document.querySelectorAll('#settings-grid .setting-btn'), document.getElementById('close-btn')] :
+                currentPanel === 'wifi-panel' ?
+                [...document.querySelectorAll('#wifi-list .wifi-item'), ...document.querySelectorAll('#wifi-panel .setting-btn')] :
+                [...document.querySelectorAll('#bluetooth-list .bluetooth-item'), ...document.querySelectorAll('#bluetooth-panel .setting-btn')];
+            buttons.forEach((btn, index) => {
+                btn.classList.toggle('selected', index === selectedIndex);
+            });
+        }
+
+        async function showWifiSettings() {
+            try {
+                document.getElementById('wifi-panel').classList.remove('hidden');
+                document.getElementById('bluetooth-panel').classList.add('hidden');
+                const wifiList = document.getElementById('wifi-list');
+                wifiList.innerHTML = '';
+                const networks = await window.electronApi.networkAction('getWifiNetworks');
+                if (!networks.length) {
+                    wifiList.innerHTML = '<p>No networks found</p>';
+                    return;
+                }
+                networks.forEach(n => {
+                    const div = document.createElement('div');
+                    div.className = 'wifi-item p-2 cursor-pointer';
+                    div.textContent = `${n.ssid} (${n.signal}%)`;
+                    div.onclick = () => window.electronApi.selectWifi(n.ssid);
+                    wifiList.appendChild(div);
+                });
+                currentPanel = 'wifi-panel';
+                selectedIndex = 0;
+                updateSelection();
+                gsap.from('.wifi-item', { duration: 0.5, y: 20, opacity: 0, stagger: 0.05 });
+            } catch (e) {
+                console.error(`Error showing Wi-Fi settings: ${e}`);
+                document.getElementById('wifi-list').innerHTML = '<p>No networks found</p>';
+            }
+        }
+
+        async function showBluetoothSettings() {
+            try {
+                document.getElementById('bluetooth-panel').classList.remove('hidden');
+                document.getElementById('wifi-panel').classList.add('hidden');
+                const bluetoothList = document.getElementById('bluetooth-list');
+                bluetoothList.innerHTML = '';
+                const devices = await window.electronApi.scanBluetooth();
+                if (!devices.length) {
+                    bluetoothList.innerHTML = '<p>No devices found</p>';
+                    return;
+                }
+                devices.forEach(d => {
+                    const div = document.createElement('div');
+                    div.className = 'bluetooth-item p-2 cursor-pointer';
+                    div.textContent = `${d.name} (${d.id})`;
+                    div.onclick = () => window.electronApi.selectBluetooth(d.id);
+                    bluetoothList.appendChild(div);
+                });
+                currentPanel = 'bluetooth-panel';
+                selectedIndex = 0;
+                updateSelection();
+                gsap.from('.bluetooth-item', { duration: 0.5, y: 20, opacity: 0, stagger: 0.05 });
+            } catch (e) {
+                console.error(`Error showing Bluetooth settings: ${e}`);
+                document.getElementById('bluetooth-list').innerHTML = '<p>No devices found</p>';
+            }
+        }
+
+        document.addEventListener('keydown', async (e) => {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+                selectedIndex = (selectedIndex + 1) % buttons.length;
+                updateSelection();
+            } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                selectedIndex = (selectedIndex - 1 + buttons.length) % buttons.length;
+                updateSelection();
+            } else if (e.key === 'Enter') {
+                const selectedBtn = buttons[selectedIndex];
+                const action = selectedBtn.getAttribute('data-action');
+                if (action === 'showWifiSettings') {
+                    await showWifiSettings();
+                } else if (action === 'showBluetoothSettings') {
+                    await showBluetoothSettings();
+                } else if (action === 'connectWifi') {
+                    await window.electronApi.connectWifi();
+                } else if (action === 'scanBluetooth') {
+                    await showBluetoothSettings();
+                } else if (action === 'pairBluetooth') {
+                    await window.electronApi.pairBluetooth();
+                } else if (action === 'applyLanguage') {
+                    await window.electronApi.setLanguage(document.getElementById('language-select').value);
+                } else if (selectedBtn.id === 'close-btn') {
+                    await window.electronApi.closeSettings();
+                } else if (action) {
+                    if (action.includes('Volume') || action.includes('Mute')) {
+                        await window.electronApi.audioAction(action);
+                    } else if (action.includes('Brightness') || action.includes('Theme')) {
+                        await window.electronApi.displayAction(action);
+                    } else if (action.includes('power') || action === 'balanced' || action === 'performance') {
+                        await window.electronApi.powerAction(action);
+                    }
+                }
+            } else if (e.key === 'Escape' && currentPanel !== 'settings-grid') {
+                document.getElementById('wifi-panel').classList.add('hidden');
+                document.getElementById('bluetooth-panel').classList.add('hidden');
+                currentPanel = 'settings-grid';
+                selectedIndex = 0;
+                updateSelection();
+            }
+        });
+
+        document.querySelectorAll('.setting-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const action = btn.getAttribute('data-action');
+                if (action === 'showWifiSettings') {
+                    await showWifiSettings();
+                } else if (action === 'showBluetoothSettings') {
+                    await showBluetoothSettings();
+                } else if (action === 'connectWifi') {
+                    await window.electronApi.connectWifi();
+                } else if (action === 'scanBluetooth') {
+                    await showBluetoothSettings();
+                } else if (action === 'pairBluetooth') {
+                    await window.electronApi.pairBluetooth();
+                } else if (action === 'applyLanguage') {
+                    await window.electronApi.setLanguage(document.getElementById('language-select').value);
+                } else if (action.includes('Volume') || action.includes('Mute')) {
+                    await window.electronApi.audioAction(action);
+                } else if (action.includes('Brightness') || action.includes('Theme')) {
+                    await window.electronApi.displayAction(action);
+                } else if (action.includes('power') || action === 'balanced' || action === 'performance') {
+                    await window.electronApi.powerAction(action);
+                }
+            });
+        });
+
+        document.getElementById('close-btn').addEventListener('click', async () => {
+            await window.electronApi.closeSettings();
+        });
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                await window.electronApi.initSettings();
+                gsap.from('.setting-panel', { duration: 0.8, y: 50, opacity: 0, stagger: 0.1 });
+                updateSelection();
+            } catch (e) {
+                console.error(`Error initializing settings: ${e}`);
+            }
+        });
+    </script>
+</body>
+</html>
