@@ -1,4 +1,5 @@
 const { exec } = require('child_process');
+const { app } = require('electron');
 const util = require('util');
 const execPromise = util.promisify(exec);
 
@@ -14,11 +15,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (savedKernel) {
             rememberCheckbox.checked = true;
             statusDiv.textContent = `Saved choice: ${savedKernel}`;
-            // Auto-select saved kernel
-            await selectKernel(savedKernel);
         }
     } catch (error) {
         console.error('Error loading saved choice:', error);
+        statusDiv.textContent = `Error loading saved choice: ${error.message}`;
     }
 
     // Check kernel availability
@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (error) {
             console.error(`Error checking ${kernel}:`, error);
+            statusDiv.textContent = `Error checking ${kernel}: ${error.message}`;
         }
     }
 
@@ -44,20 +45,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     async function selectKernel(kernel) {
+        if (!confirm(`Install ${kernel} kernel and set it as default?`)) return;
         statusDiv.textContent = `Installing ${kernel} kernel...`;
         try {
             await execPromise(`/usr/share/LegendaryOS/Scripts/Legendary-Core/legendary-core-kernels.sh install ${kernel}`);
-            statusDiv.textContent = `${kernel} kernel installed successfully!`;
+            statusDiv.textContent = `${kernel} kernel installed and set as default! Reboot to apply changes.`;
             if (rememberCheckbox.checked) {
                 await execPromise(`/usr/share/LegendaryOS/Scripts/Legendary-Core/legendary-core-kernels.sh save ${kernel}`);
                 statusDiv.textContent += ' Choice saved.';
             }
-            for (const btn of kernelButtons) {
-                if (btn.dataset.kernel === kernel) {
-                    btn.textContent += ' (Installed)';
-                    btn.disabled = true;
-                }
-            }
+            // Launch startplasma-wayland and quit
+            await execPromise('startplasma-wayland');
+            app.quit();
         } catch (error) {
             statusDiv.textContent = `Error installing ${kernel}: ${error.message}`;
         }
