@@ -1,10 +1,10 @@
 #!/bin/bash
-# Script to handle kernel detection and installation
+# Script to handle kernel detection, installation, and default setting
 
 # Function to check if a kernel is installed
 check_kernel() {
     local kernel_name=$1
-    ls /boot/vmlinuz* | grep -q "$kernel_name"
+    pacman -Q | grep -q "$kernel_name"
     return $?
 }
 
@@ -22,20 +22,6 @@ install_zen() {
     sudo pacman -S linux-zen --noconfirm
 }
 
-# Function to install tkg kernel
-install_tkg() {
-    /usr/share/LegendaryOS/Scripts/Legendary-Core/TKG-Kernel/tkg-update
-}
-
-# Function to install cacule kernel
-install_cacule() {
-    if ! command -v yay &> /dev/null; then
-        echo "yay is not installed. Please install yay first."
-        exit 1
-    fi
-    yay -S linux-cacule --noconfirm
-}
-
 # Function to install lts kernel
 install_lts() {
     sudo pacman -S linux-lts --noconfirm
@@ -51,10 +37,30 @@ install_arch() {
     sudo pacman -S linux --noconfirm
 }
 
+# Function to set the default kernel in GRUB
+set_default_kernel() {
+    local kernel_name=$1
+    local kernel_version
+    # Get the installed kernel version
+    kernel_version=$(pacman -Q | grep "$kernel_name" | awk '{print $2}' | head -1)
+    if [ -z "$kernel_version" ]; then
+        echo "Error: Could not find version for $kernel_name"
+        exit 1
+    fi
+    # Update GRUB configuration
+    local kernel_entry="/boot/vmlinuz-$kernel_name"
+    if [ "$kernel_name" = "linux" ]; then
+        kernel_entry="/boot/vmlinuz"
+    fi
+    sudo grubby --set-default "/boot/vmlinuz-${kernel_name}-${kernel_version}"
+    sudo grub-mkconfig -o /boot/grub/grub.cfg
+}
+
 # Function to save kernel choice
 save_choice() {
     local kernel=$1
-    echo "$kernel" > /etc/legendaryos/kernel-choice
+    sudo mkdir -p /etc/legendaryos
+    echo "$kernel" | sudo tee /etc/legendaryos/kernel-choice > /dev/null
 }
 
 # Function to load saved kernel choice
@@ -78,13 +84,12 @@ case $1 in
         case $kernel in
             "xanmod") install_xanmod ;;
             "zen") install_zen ;;
-            "tkg") install_tkg ;;
-            "cacule") install_cacule ;;
             "lts") install_lts ;;
             "hardened") install_hardened ;;
             "arch") install_arch ;;
             *) echo "Unknown kernel: $kernel"; exit 1 ;;
         esac
+        set_default_kernel "$kernel"
         ;;
     "save")
         save_choice "$2"
