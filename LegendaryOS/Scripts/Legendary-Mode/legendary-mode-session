@@ -1,0 +1,76 @@
+#!/bin/sh
+
+########################
+### 1. MONITORY — autodetekcja
+########################
+
+for output in $(wlr-randr | grep '^[A-Z]' | cut -d ' ' -f 1); do
+    # Ustaw najlepszą (ostatnią na liście) rozdzielczość dla każdego monitora
+    best_mode=$(wlr-randr | awk "/^$output /,/^[A-Z]/" | grep -oP '^\s+\K[0-9]+x[0-9]+' | tail -n 1)
+    wlr-randr --output "$output" --mode "$best_mode"
+done
+
+########################
+### 2. GRACZ – SKRYPT STARTOWY
+########################
+
+/usr/share/LegendaryOS/Scripts/Legendary-Mode/legendary-mode &
+
+########################
+### 3. GAME MODE / POST FX
+########################
+
+systemctl --user start gamemoded.service
+
+# Upewnij się, że vkBasalt działa z LD_PRELOAD
+# Nic nie trzeba robić — aktywuje się automatycznie przy uruchamianiu gier
+
+########################
+### 4. BLUETOOTH + PAD AUTO CONNECT
+########################
+
+rfkill unblock bluetooth
+bluetoothctl power on
+
+# Automatyczne parowanie z padem (PS/Xbox/Switch) — podaj MAC!
+PAD_MAC="XX:XX:XX:XX:XX:XX"  # <- ZMIEŃ na prawidłowy MAC
+
+(
+  sleep 5
+  connected=$(bluetoothctl info "$PAD_MAC" | grep -i "Connected: yes")
+  if [ -z "$connected" ]; then
+    bluetoothctl connect "$PAD_MAC"
+  fi
+) &
+
+########################
+### 5. INTERNET
+########################
+
+nmcli networking on
+nmcli radio wifi on
+
+########################
+### 6. KONTROLERY
+########################
+
+modprobe hid_nintendo
+modprobe xpad
+
+########################
+### 7. RIVER – ustawienia i skróty
+########################
+
+riverctl set-repeat 25 300
+riverctl default-layout rivertile
+
+mod=Mod4
+riverctl map normal $mod Escape exit
+riverctl map normal $mod F toggle-fullscreen
+
+for i in $(seq 1 9); do
+  riverctl map normal $mod $i set-workspace $i
+  riverctl map normal "$mod+Shift" $i send-to-workspace $i
+done
+
+exit 0
