@@ -1,1 +1,105 @@
+#!/bin/bash
 
+# Sprawdza plik lokalny
+LOCAL_FILE="/usr/share/LegendaryOS/release.json"
+
+if [ ! -f "$LOCAL_FILE" ]; then
+    echo "Plik $LOCAL_FILE nie istnieje."
+    exit 1
+fi
+
+# Parsowanie lokalnego JSON za pomocą jq
+if ! command -v jq &> /dev/null; then
+    echo "jq nie jest zainstalowane. Zainstaluj jq, aby kontynuować."
+    exit 1
+fi
+
+LOCAL_CODENAME=$(jq -r '.codename' "$LOCAL_FILE")
+LOCAL_EDITION=$(jq -r '.["edition-name"]' "$LOCAL_FILE")
+LOCAL_VERSION_SHORT=$(jq -r '.["version-short"]' "$LOCAL_FILE")
+
+# Wyodrębnienie desktop z codename (pierwsza część przed -)
+DESKTOP="${LOCAL_CODENAME%%-*}"
+
+# Specjalne mapowanie dla legendary
+if [ "$DESKTOP" = "legendary" ]; then
+    DESKTOP="legendary-enviroment"
+fi
+
+# Walidacja edition
+if [ "$LOCAL_EDITION" != "${LOCAL_CODENAME#*-}" ]; then
+    echo "Niezgodność edition w lokalnym JSON."
+    exit 1
+fi
+
+# Konstrukcja URL do remote JSON
+BASE_URL="https://raw.githubusercontent.com/LegendaryOS/LegendaryOS-Updates/main"
+REMOTE_URL="$BASE_URL/$LOCAL_EDITION/$DESKTOP/release.json"
+
+# Pobranie remote JSON
+if ! command -v curl &> /dev/null; then
+    echo "curl nie jest zainstalowane. Zainstaluj curl, aby kontynuować."
+    exit 1
+fi
+
+REMOTE_JSON=$(curl -s "$REMOTE_URL")
+if [ $? -ne 0 ]; then
+    echo "Błąd podczas pobierania $REMOTE_URL."
+    exit 1
+fi
+
+# Parsowanie remote version-short
+REMOTE_VERSION_SHORT=$(echo "$REMOTE_JSON" | jq -r '.["version-short"]')
+if [ -z "$REMOTE_VERSION_SHORT" ]; then
+    echo "Nie udało się odczytać version-short z remote JSON."
+    exit 1
+fi
+
+# Porównanie wersji (używając sort -V)
+if [ "$(printf '%s\n%s\n' "$LOCAL_VERSION_SHORT" "$REMOTE_VERSION_SHORT" | sort -V | head -n1)" = "$REMOTE_VERSION_SHORT" ]; then
+    echo "Znaleziono nowszą wersję: lokalna $LOCAL_VERSION_SHORT, remote $REMOTE_VERSION_SHORT"
+    
+    if [ "$LOCAL_EDITION" = "atomic" ]; then
+        echo "Dla edycji atomic nic nie robimy."
+    elif [ "$LOCAL_EDITION" = "official" ]; then
+        # Klonowanie repozytorium
+        if ! command -v git &> /dev/null; then
+            echo "git nie jest zainstalowane. Zainstaluj git, aby kontynuować."
+            exit 1
+        fi
+        
+        REPO_DIR="/tmp/LegendaryOS-Updates"
+        rm -rf "$REPO_DIR"  # Czyszczenie jeśli istnieje
+        git clone https://github.com/LegendaryOS/LegendaryOS-Updates.git "$REPO_DIR"
+        if [ $? -ne 0 ]; then
+            echo "Błąd podczas klonowania repozytorium."
+            exit 1
+        fi
+        
+        # Wejście do folderu official/<desktop>
+        UPDATE_DIR="$REPO_DIR/$LOCAL_EDITION/$DESKTOP"
+        if [ ! -d "$UPDATE_DIR" ]; then
+            echo "Folder $UPDATE_DIR nie istnieje."
+            exit 1
+        fi
+        
+        cd "$UPDATE_DIR" || exit 1
+        
+        # Nadanie uprawnień i uruchomienie unpack.sh
+        UNPACK_SCRIPT="unpack.sh"
+        if [ ! -f "$UNPACK_SCRIPT" ]; then
+            echo "Plik $UNPACK_SCRIPT nie istnieje w $UPDATE_DIR."
+            exit 1
+        fi
+        
+        chmod a+x "$UNPACK_SCRIPT"
+        ./"$UNPACK_SCRIPT"
+        
+        echo "Uruchomiono unpack.sh. Pliki powinny być w /tmp/ lub zgodnie z skryptem unpack.sh."
+    else
+        echo "Nieznana edycja: $LOCAL_EDITION"
+        exit 1
+    fi
+else
+    echo "Wersja jest aktualna. Nic nie robimy."
+fi
