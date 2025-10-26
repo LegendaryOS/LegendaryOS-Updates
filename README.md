@@ -1,2 +1,2 @@
 # LegendaryOS-Updates
-Updates for LegendaryOS ATOMIC.
+Updates for LegendaryOS. For atomic editions and official editions.
