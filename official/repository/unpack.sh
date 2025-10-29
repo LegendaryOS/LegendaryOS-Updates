@@ -10,7 +10,6 @@ sudo mkdir terminal-legend
 cd legndary
 echo "[INFO] Downloading legendary tool"
 curl -L -o legendary https://github.com/LegendaryOS/legendary/releases/download/0.4/legendary-official
-sudo mv legendary-official legendary
 cd ..
 cd terminal-legend
 curl -L -o tl-fronted https://github.com/LegendaryOS/Terminal-Legend/releases/download/0.1/tl-fronted
